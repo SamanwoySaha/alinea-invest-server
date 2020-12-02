@@ -36,33 +36,6 @@ client.onConnect(function () {
 
 client.connect();
 
-const db = admin.firestore();
-const stockWatchlist = db.collection('watchlist');
-
-interface StockData {
-    name: string,
-    image: string,
-    askPrice: number,
-    bidPrice: number,
-}
-
-const addStock = async (docName: string, data: StockData) => {
-    const res = await stockWatchlist.doc(docName).set(data);
-    console.log(res);
-}
-
-const readWatchlist = async () => {
-    const res = await stockWatchlist.get();
-    res.map((doc: any) => {
-        console.log(doc.data());
-    });
-}
-// 7e609ee6-ebb7-4e2a-b084-3029d9e15cd5
-// alpaca.addWatchlist("stockList", [])
-//     .then((response: any) => {
-//         console.log(response)
-//     })
-
 app.get('/stocks', (request: Request, response: Response) => {
     alpaca.getWatchlist('7e609ee6-ebb7-4e2a-b084-3029d9e15cd5')
         .then((res: any) => {
@@ -74,15 +47,54 @@ app.get('/stocks', (request: Request, response: Response) => {
         })
 });
 
+app.get('/stockByName/:name', (request: Request, response: Response) => {
+    alpaca.getWatchlist('7e609ee6-ebb7-4e2a-b084-3029d9e15cd5')
+        .then((res: any) => {
+            const regex = new RegExp('.*' + request.params.name + '.*', 'i');
+            const stock = res.assets.filter((item: any) => regex.test(item.name) === true);
+            if (response) {
+                response.status(200).send(stock);
+            }
+        })
+});
+
 app.get('/stockDetail/:symbol', (req: Request, res: Response) => {
     alpaca.lastQuote(req.params.symbol)
-    .then((response: any) => {
-        if (response.status === 'success') {
-            res.status(200).send(response);
-        } else {
-            res.status(401).send('Error occured');
-        }
-    })
+        .then((response: any) => {
+            if (response.status === 'success') {
+                res.status(200).send(response);
+            } else {
+                res.status(401).send('Error occured');
+            }
+        })
+});
+
+const db = admin.firestore();
+const stockWatchlist = db.collection('watchlist');
+
+const addStock = async (symbol: string, data: any) => {
+    const res = await stockWatchlist.doc(symbol).set(data);
+}
+
+const removeStock = async (symbol: string) => {
+    const res = await stockWatchlist.doc(symbol).delete();
+}
+
+app.post('/addStock', (req: Request, res: Response) => {
+    addStock(req.body.symbol, req.body);
 })
 
-app.listen(port)
+app.get('/watchlist', async (req: Request, response: Response) => {
+    const newList: any = [];
+    const res = await stockWatchlist.get();
+    res.forEach((doc: any) => {
+        newList.push(doc.data());
+    });
+    response.send(newList);
+});
+
+app.delete('/removeStock/:symbol', (req: Request, response: Response) => {
+    removeStock(req.params.symbol);
+});
+
+app.listen(port);

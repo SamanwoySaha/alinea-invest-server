@@ -30,23 +30,6 @@ client.onConnect(function () {
     console.log("Connected");
 });
 client.connect();
-const db = admin.firestore();
-const stockWatchlist = db.collection('watchlist');
-const addStock = async (docName, data) => {
-    const res = await stockWatchlist.doc(docName).set(data);
-    console.log(res);
-};
-const readWatchlist = async () => {
-    const res = await stockWatchlist.get();
-    res.map((doc) => {
-        console.log(doc.data());
-    });
-};
-// 7e609ee6-ebb7-4e2a-b084-3029d9e15cd5
-// alpaca.addWatchlist("stockList", [])
-//     .then((response: any) => {
-//         console.log(response)
-//     })
 app.get('/stocks', (request, response) => {
     alpaca.getWatchlist('7e609ee6-ebb7-4e2a-b084-3029d9e15cd5')
         .then((res) => {
@@ -55,6 +38,16 @@ app.get('/stocks', (request, response) => {
         }
         else {
             response.status(401).send('Error occured');
+        }
+    });
+});
+app.get('/stockByName/:name', (request, response) => {
+    alpaca.getWatchlist('7e609ee6-ebb7-4e2a-b084-3029d9e15cd5')
+        .then((res) => {
+        const regex = new RegExp('.*' + request.params.name + '.*', 'i');
+        const stock = res.assets.filter((item) => regex.test(item.name) === true);
+        if (response) {
+            response.status(200).send(stock);
         }
     });
 });
@@ -68,5 +61,27 @@ app.get('/stockDetail/:symbol', (req, res) => {
             res.status(401).send('Error occured');
         }
     });
+});
+const db = admin.firestore();
+const stockWatchlist = db.collection('watchlist');
+const addStock = async (symbol, data) => {
+    const res = await stockWatchlist.doc(symbol).set(data);
+};
+const removeStock = async (symbol) => {
+    const res = await stockWatchlist.doc(symbol).delete();
+};
+app.post('/addStock', (req, res) => {
+    addStock(req.body.symbol, req.body);
+});
+app.get('/watchlist', async (req, response) => {
+    const newList = [];
+    const res = await stockWatchlist.get();
+    res.forEach((doc) => {
+        newList.push(doc.data());
+    });
+    response.send(newList);
+});
+app.delete('/removeStock/:symbol', (req, response) => {
+    removeStock(req.params.symbol);
 });
 app.listen(port);

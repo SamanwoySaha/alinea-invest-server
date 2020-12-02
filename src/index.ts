@@ -1,5 +1,5 @@
 import express from 'express';
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import cors from 'cors';
 import bodyParser from 'body-parser';
 require('dotenv').config();
